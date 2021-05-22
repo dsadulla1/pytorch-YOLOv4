@@ -10,6 +10,7 @@ ttest
 z_demo_*
 
 __pycache__
+discard
 .idea
 .vscode
 runs
@@ -18,3 +19,4 @@ log
 *.jpg
 *.json
 data/outcome
+*.log

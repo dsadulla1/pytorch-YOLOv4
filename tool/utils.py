@@ -111,6 +111,10 @@ def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
 
     width = img.shape[1]
     height = img.shape[0]
+
+    objects_identified = []
+    prediction_confidence = []
+    
     for i in range(len(boxes)):
         box = boxes[i]
         x1 = int(box[0] * width)
@@ -126,6 +130,10 @@ def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
             cls_conf = box[5]
             cls_id = box[6]
             print('%s: %f' % (class_names[cls_id], cls_conf))
+            
+            objects_identified.append(class_names[cls_id])
+            prediction_confidence.append(cls_conf)
+            
             classes = len(class_names)
             offset = cls_id * 123457 % classes
             red = get_color(2, offset, classes)
@@ -138,7 +146,7 @@ def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
     if savename:
         print("save plot results to %s" % savename)
         cv2.imwrite(savename, img)
-    return img
+    return img, objects_identified, prediction_confidence
 
 
 def read_truths(lab_path):
