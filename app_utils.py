@@ -1,6 +1,7 @@
 import numpy as np
 import base64
 import sys
+import timeit
 
 def base64_encode_image(a):
     return base64.b64encode(a).decode("utf-8")
@@ -11,3 +12,9 @@ def base64_decode_image(a, dtype, shape):
     a = np.frombuffer(base64.decodestring(a), dtype=dtype)
     a = a.reshape(shape)
     return a
+
+def timer(number, repeat):
+    def wrapper(func):
+        runs = timeit.repeat(func, number=number, repeat=repeat)
+        print(sum(runs)/len(runs))
+    return wrapper

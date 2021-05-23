@@ -2,8 +2,9 @@ from PIL import Image
 import numpy as np
 import base64
 
-from typing import List as typing_list
+from typing import List # as typing_list
 from fastapi import FastAPI
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 
 import uuid
@@ -25,36 +26,25 @@ model = None
 class RequestIn(BaseModel):
     success: bool = False
     image: str
-    orig_shape: typing_list[int]
-from fastapi.encoders import jsonable_encoder
+    orig_shape: List[int]
+
 class RequestOut(BaseModel):
     success: bool
     image: str
-    orig_shape: typing_list[int]
+    orig_shape: List[int]
     id: str
     image_w_bbox: str
     label: str
     probability: str
 
-@app.post("/predict") # , response_model=RequestOut
+@app.post("/predict")
 def predict(data: RequestIn):
-# @app.post("/predict")
-# def predict(data):
-    # print(type(data))
-    # print({k:type(v) for k,v in json.loads(data).items()})
     
     k = str(uuid.uuid4())
 
     data = jsonable_encoder(data)
     data['id'] = k
     db.rpush(IMAGE_QUEUE, json.dumps(data))
-
-
-    # redis_input = {}
-    # redis_input['id'] = k
-    # redis_input['payload'] = data.dict()
-    # redis_input = jsonable_encoder(redis_input)
-    # db.rpush(IMAGE_QUEUE, json.dumps(redis_input))
 
     while True:
         output = db.get(k)
@@ -68,8 +58,6 @@ def predict(data: RequestIn):
             break
         time.sleep(CLIENT_SLEEP)
     data["success"] = True
-    # data = jsonable_encoder(data)
     return data
-    # return json.dumps(data)
 
 # uvicorn app-server:app --reload

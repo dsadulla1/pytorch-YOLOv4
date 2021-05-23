@@ -56,7 +56,7 @@ def get_predictions(model, imgs, sized_imgs, use_cuda, verbose=0):
         print("boxes", boxes)
 
     class_names = load_class_names('data/coco.names')
-    results = plot_boxes_cv2(imgs, boxes[0], None, class_names) # check if this is batched or single
+    results = plot_boxes_cv2(imgs, boxes[0], None, class_names)
 
     if verbose:
         print("results[0]", results[0].shape)
@@ -79,8 +79,7 @@ def object_detection_process(use_cuda):
 
         for q in queue: # imageID, image
             q = json.loads(q.decode("utf-8"))
-            # image = base64_decode_image(q['payload']["image"], 'float32', tuple(q['payload']['orig_shape'])) # serialized np_image --> deserialized np_image
-            image = base64_decode_image(q["image"], 'float32', tuple(q['orig_shape'])) # serialized np_image --> deserialized np_image
+            image = base64_decode_image(q["image"], 'float32', tuple(q['orig_shape']))
             sized_image = resize_image_for_model(image, MODEL_IMAGE_WIDTH, MODEL_IMAGE_HEIGHT)
 
             if img_batch is None:
@@ -112,7 +111,3 @@ def object_detection_process(use_cuda):
 if __name__ == "__main__":
     print("* Starting model service...")
     object_detection_process(use_cuda=False)
-
-    # t = Thread(target=object_detection_process, args=(True,))
-    # t.daemon = True
-    # t.start()
