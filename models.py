@@ -481,7 +481,7 @@ if __name__ == "__main__":
         model.cuda()
 
     img = cv2.imread(imgfile)
-
+    print("img.shape", img.shape)
     # Inference input size is 416*416 does not mean training size is the same
     # Training size could be 608*608 or even other sizes
     # Optional inference sizes:
@@ -489,6 +489,7 @@ if __name__ == "__main__":
     #   Width in {320, 416, 512, 608, ... 320 + 96 * m}
     sized = cv2.resize(img, (width, height))
     sized = cv2.cvtColor(sized, cv2.COLOR_BGR2RGB)
+    print("sized.shape", sized.shape)
 
     from tool.utils import load_class_names, plot_boxes_cv2
     from tool.torch_utils import do_detect
@@ -496,7 +497,8 @@ if __name__ == "__main__":
     for i in range(2):  # This 'for' loop is for speed check
                         # Because the first iteration is usually longer
         boxes = do_detect(model, sized, 0.4, 0.6, use_cuda)
-
+    print("boxes len:", len(boxes))
+    
     if namesfile == None:
         if n_classes == 20:
             namesfile = 'data/voc.names'
@@ -506,4 +508,6 @@ if __name__ == "__main__":
             print("please give namefile")
 
     class_names = load_class_names(namesfile)
+    
+    print(type(boxes[0]), len(boxes[0]))
     plot_boxes_cv2(img, boxes[0], 'predictions.jpg', class_names)

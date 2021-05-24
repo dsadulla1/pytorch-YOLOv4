@@ -116,7 +116,7 @@ git subtree add --prefix yolo_model https://github.com/Tianxiaomo/pytorch-YOLOv4
 git subtree pull --prefix yolo_model https://github.com/Tianxiaomo/pytorch-YOLOv4.git master --squash
 
 ### Create conda environment
-conda create -n Dev python=3.6
+conda create -n Dev python=3.8
 conda activate Dev
 
 ### get all packages needed

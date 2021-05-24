@@ -129,7 +129,7 @@ def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
         if len(box) >= 7 and class_names:
             cls_conf = box[5]
             cls_id = box[6]
-            print('%s: %f' % (class_names[cls_id], cls_conf))
+            # print('%s: %f' % (class_names[cls_id], cls_conf))
             
             objects_identified.append(class_names[cls_id])
             prediction_confidence.append(cls_conf)
@@ -146,7 +146,13 @@ def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
     if savename:
         print("save plot results to %s" % savename)
         cv2.imwrite(savename, img)
-    return img, objects_identified, prediction_confidence
+    return [img, objects_identified, prediction_confidence]
+    # return {
+    #     "img": img,
+    #     "objects_identified": objects_identified,
+    #     "prediction_confidence": prediction_confidence,
+    # }
+    # return img
 
 
 def read_truths(lab_path):
@@ -172,7 +178,13 @@ def load_class_names(namesfile):
 
 
 def post_processing(img, conf_thresh, nms_thresh, output):
-
+    print("postprocessing")
+    print({
+        'img': img.shape, 
+        'conf_thresh': conf_thresh, 
+        'nms_thresh': nms_thresh, 
+        'output': (len(output), type(output))
+    })
     # anchors = [12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401]
     # num_anchors = 9
     # anchor_masks = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
@@ -238,4 +250,5 @@ def post_processing(img, conf_thresh, nms_thresh, output):
     print('Post processing total : %f' % (t3 - t1))
     print('-----------------------------------')
     
+    print("bboxes_batch", type(bboxes_batch), len(bboxes_batch))
     return bboxes_batch

@@ -1,3 +1,4 @@
+conda activate Dev
 cd /home/deepak_sadulla/projects/pytorch-YOLOv4/
 redis-server >> ~/logs/redis.log 2>&1 &
 python app-inference-server.py >> ~/logs/app-inference-server.log 2>&1 &

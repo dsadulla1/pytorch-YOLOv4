@@ -72,7 +72,6 @@ def convert2cpu_long(gpu_matrix):
     return torch.LongTensor(gpu_matrix.size()).copy_(gpu_matrix)
 
 
-
 def do_detect(model, img, conf_thresh, nms_thresh, use_cuda=1):
     model.eval()
     t0 = time.time()
@@ -90,8 +89,9 @@ def do_detect(model, img, conf_thresh, nms_thresh, use_cuda=1):
     img = torch.autograd.Variable(img)
     
     t1 = time.time()
-
+    print("model input shape within do_detect:", img.shape)
     output = model(img)
+    box_arrays, confs = tuple(output)
 
     t2 = time.time()
 
@@ -99,6 +99,9 @@ def do_detect(model, img, conf_thresh, nms_thresh, use_cuda=1):
     print('           Preprocess : %f' % (t1 - t0))
     print('      Model Inference : %f' % (t2 - t1))
     print('-----------------------------------')
-
-    return utils.post_processing(img, conf_thresh, nms_thresh, output)
-
+    
+    # return utils.post_processing(img, conf_thresh, nms_thresh, output)
+    return [ 
+        utils.post_processing(img.unsqueeze(0), conf_thresh, nms_thresh, (box.unsqueeze(0), conf.unsqueeze(0)))
+        for img, box, conf in zip(img, box_arrays, confs)
+    ]
