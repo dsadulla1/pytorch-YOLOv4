@@ -1,11 +1,8 @@
 from PIL import Image
 import numpy as np
-import json
 from app_utils import base64_encode_image, base64_decode_image
-import asyncio
-import aiohttp
-import time
-import argparse
+import asyncio, aiohttp
+import time, argparse, json
 
 async def make_requests(data):
     async with aiohttp.ClientSession() as session:
