@@ -80,6 +80,7 @@ nvcc --version
 
 ## Install & Configure anaconda
 
+```bash
 cd ~
 mkdir InstallFiles
 cd InstallFiles/
@@ -91,6 +92,7 @@ sudo mkdir envs
 sudo mkdir pkgs
 sudo chown 1000:1000 /home/deepak_sadulla/.conda/envs
 sudo chown 1000:1000 /home/deepak_sadulla/.conda/pkgs
+```
 
 ## Configure your git and create your ssh keys
 
@@ -107,31 +109,55 @@ chmod 600 .ssh/authorized_keys
 ```
 
 ### git clone the repo
+```bash
 git clone git@github.com:dsadulla1/yolov4-app.git
+```
 
 ### add the yolov4 repo into your current repo
+```bash
 git subtree add --prefix yolo_model https://github.com/Tianxiaomo/pytorch-YOLOv4.git master --squash
+```
 
 ### to pull latest changes in the external repo
+```bash
 git subtree pull --prefix yolo_model https://github.com/Tianxiaomo/pytorch-YOLOv4.git master --squash
+```
 
 ### Create conda environment
+```
 conda create -n Dev python=3.8
 conda activate Dev
+```
 
 ### get all packages needed
+```bash
 pip install -r requirements.txt
 pip install -r app-requirements.txt
+```
 
 ### Installing Redis to cache requests
+```bash
 wget http://download.redis.io/redis-stable.tar.gz
 tar xvzf redis-stable.tar.gz
 cd redis-stable
 make
 sudo make install
+```
 
 #### Start redis server
+```bash
 redis-server
+```
 
 #### Test redis server is working from another terminal
+```bash
 redis-cli ping
+```
+
+### Installing Wrk for load testing APIs
+```bash
+git clone https://github.com/wg/wrk.git
+cd wrk
+make
+./wrk
+```

@@ -20,7 +20,6 @@ MODEL_IMAGE_CHANS = 3
 IMAGE_QUEUE = "image_queue"
 BATCH_SIZE = 5
 SERVER_SLEEP = 0.25
-use_cuda = True
 
 db = redis.StrictRedis(host="localhost", port=6379, db=0)
 model = None
@@ -104,4 +103,4 @@ def object_detection_process(use_cuda):
 
 if __name__ == "__main__":
     print("* Starting model service...")
-    object_detection_process(use_cuda=False)
+    object_detection_process(use_cuda=True)

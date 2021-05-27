@@ -17,6 +17,13 @@ Endpoints:
 
 You can clear the redis queue using `FLUSHALL` within `redis-cli` on commandline.
 
+## Monitoring processes
+How to check the current length of the current redis-queue: `watch -n 1 redis-cli -h localhost -p 6379 -n 0 llen image_queue`
+How to find the length of the log file: `watch -n 1 wc -l  ~/logs/app-server.log`
+How to check the load on GPU: `watch -n 1 nvidia-smi`
+
+`Ctrl + C` to quit from `watch`.
+
 ## Stop the servers
 In the following order:
 ```bash
