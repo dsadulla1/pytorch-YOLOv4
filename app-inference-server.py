@@ -1,15 +1,18 @@
-
 from torch import nn
 from tool.utils import load_class_names, plot_boxes_cv2
 from tool.torch_utils import do_detect
 from models import Yolov4
 import torch
 import cv2
+import random
 
 import numpy as np
 import redis
 import time
 import json
+
+import argparse
+from concurrent.futures import ProcessPoolExecutor
 
 from app_utils import base64_encode_image, base64_decode_image
 
@@ -61,14 +64,30 @@ def get_predictions(model, imgs, sized_imgs, use_cuda, verbose=0):
         print("========","End of get_predictions")
     return results
 
-def object_detection_process(use_cuda):
+def object_detection_process(use_cuda, verbose=False, enable_locks=True):
     print("* Loading model...")
     model = load_model(use_cuda)
     print("* Model loaded")
 
     while True:
-        queue = db.lrange(IMAGE_QUEUE, 0, BATCH_SIZE - 1)
-        print("Current length of queue:", len(queue), " and Batchsize is set to:", BATCH_SIZE)
+        if enable_locks:
+            try: # https://github.com/andymccurdy/redis-py#locks-as-context-managers
+                with db.lock('my-lock-key', blocking_timeout=SERVER_SLEEP) as locked:
+                    queue = db.lrange(IMAGE_QUEUE, 0, BATCH_SIZE - 1)
+            except redis.LockError as LE:
+                time.sleep(SERVER_SLEEP)
+                with db.lock('my-lock-key', blocking_timeout=SERVER_SLEEP) as locked:
+                    queue = db.lrange(IMAGE_QUEUE, 0, BATCH_SIZE - 1)
+            finally:
+                if len(queue) > 0: 
+                    db.ltrim(IMAGE_QUEUE, len(queue), -1)
+                    if verbose: print("Current length of queue:", len(queue))
+        else:
+            queue = db.lrange(IMAGE_QUEUE, 0, BATCH_SIZE - 1)
+            if len(queue) > 0: 
+                db.ltrim(IMAGE_QUEUE, len(queue), -1)
+                if verbose: print("Current length of queue:", len(queue))
+        
         imageIDs = []
         img_batch = None
         sized_batch = None
@@ -88,19 +107,40 @@ def object_detection_process(use_cuda):
             imageIDs.append(q["id"])
 
         if len(imageIDs) > 0:
-            results = get_predictions(model, img_batch, sized_batch, use_cuda)
-            for (imageID, resultSet) in zip(imageIDs, results):
-                image_w_bbox, label, prob = tuple(resultSet)
-                response_body = {
-                    "image_w_bbox": base64_encode_image(image_w_bbox), 
-                    "probability": [str(round(p,3)) for p in prob],
-                    "label": label
-                }
-                db.set(imageID, json.dumps(response_body))
-                print('processed imageID:', imageID)
-            db.ltrim(IMAGE_QUEUE, len(imageIDs), -1)
+            try:
+                results = get_predictions(model, img_batch, sized_batch, use_cuda)
+            except RuntimeError as e:
+                random.shuffle(queue)
+                for q in queue: db.rpush(IMAGE_QUEUE, q)
+                print("Returning a batch of images back to the queue for processing it later due to error..")
+            else:
+                for (imageID, resultSet) in zip(imageIDs, results):
+                    image_w_bbox, label, prob = tuple(resultSet)
+                    response_body = {
+                        "image_w_bbox": base64_encode_image(image_w_bbox), 
+                        "probability": [str(round(p,3)) for p in prob],
+                        "label": label
+                    }
+                    db.set(imageID, json.dumps(response_body))
+                    print('processed imageID:', imageID)
         time.sleep(SERVER_SLEEP)
 
 if __name__ == "__main__":
-    print("* Starting model service...")
-    object_detection_process(use_cuda=True)
+    print("Batch Size:", BATCH_SIZE)
+    print("SERVER_SLEEP:", SERVER_SLEEP)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-u", "--use_cuda", help="True if GPU else False", type=str, choices=["T", "F"], default="F")
+    parser.add_argument("-l", "--enable_locks", help="If lock should be enable for accessing redis queue", type=str, choices=["T", "F"], default="F")
+    parser.add_argument("-t", "--tag_process", help="Name/Tag this process to identify within logs", type=str, required=False)
+    args = parser.parse_args()
+
+    use_cuda = True if args.use_cuda == "T" else False
+    enable_locks = True if args.enable_locks == "T" else False
+    
+    if args.tag_process is not None:
+        tag_process = str(args.tag_process) 
+        print(f"* Starting model service with tag: {tag_process} *")
+    else: 
+        print(f"* Starting model service *")
+    
+    object_detection_process(use_cuda=use_cuda, enable_locks=enable_locks)
