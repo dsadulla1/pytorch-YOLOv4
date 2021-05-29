@@ -1,0 +1,14 @@
+(Dev) deepak_sadulla@Tensorflow-Deployment:~/projects/pytorch-YOLOv4$ /home/deepak_sadulla/tools/wrk/wrk "http://127.0.0.1:8000/predict" -s /home/deepak_sadulla/projects/pytorch-YOLOv4/app-load-test-script.lua --latency -t 5 -c 50 -d 10m  --timeout 100s
+Running 10m test @ http://127.0.0.1:8000/predict
+  5 threads and 50 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    29.88s     3.49s   33.48s    96.11%
+    Req/Sec     4.55      4.40    20.00     25.94%
+  Latency Distribution
+     50%   30.42s 
+     75%   30.65s 
+     90%   31.03s 
+     99%   32.04s 
+  977 requests in 10.00m, 12.88GB read
+Requests/sec:      1.63
+Transfer/sec:     21.98MB

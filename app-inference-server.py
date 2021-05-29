@@ -10,6 +10,7 @@ import numpy as np
 import redis
 import time
 import json
+import argparse
 
 from app_utils import base64_encode_image, base64_decode_image
 
@@ -61,14 +62,14 @@ def get_predictions(model, imgs, sized_imgs, use_cuda, verbose=0):
         print("========","End of get_predictions")
     return results
 
-def object_detection_process(use_cuda):
+def object_detection_process(use_cuda, verbose=False):
     print("* Loading model...")
     model = load_model(use_cuda)
     print("* Model loaded")
 
     while True:
         queue = db.lrange(IMAGE_QUEUE, 0, BATCH_SIZE - 1)
-        print("Current length of queue:", len(queue), " and Batchsize is set to:", BATCH_SIZE)
+        if verbose: print("Current length of queue:", len(queue))
         imageIDs = []
         img_batch = None
         sized_batch = None
@@ -102,5 +103,12 @@ def object_detection_process(use_cuda):
         time.sleep(SERVER_SLEEP)
 
 if __name__ == "__main__":
-    print("* Starting model service...")
-    object_detection_process(use_cuda=True)
+    print("Batch Size:", BATCH_SIZE)
+    print("SERVER_SLEEP:", SERVER_SLEEP)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-u", "--use_cuda", help="True if GPU else False", type=str, choices=["T", "F"], default="F")
+
+    args = parser.parse_args()
+    use_cuda = True if args.use_cuda == "T" else False
+
+    object_detection_process(use_cuda=use_cuda)

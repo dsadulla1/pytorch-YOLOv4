@@ -7,7 +7,7 @@ file.close()
 
 ---------------------------------- Unnecessary ----------------------------------
 
--- /home/deepak_sadulla/tools/wrk/wrk "http://127.0.0.1:8000/predict" -s /home/deepak_sadulla/projects/pytorch-YOLOv4/app-load-test-script.lua --latency -t 1 -c 1 -d 30s 
+-- /home/deepak_sadulla/tools/wrk/wrk "http://127.0.0.1:8000/predict" -s /home/deepak_sadulla/projects/pytorch-YOLOv4/app-load-test-script.lua --latency -t 10 -c 100 -d 10m  --timeout 100s
 -- tail  ~/logs/app-server.log
 -- wc -l  ~/logs/app-server.log
 
