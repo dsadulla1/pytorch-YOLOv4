@@ -18,9 +18,9 @@ session_optimizations = False
 
 if session_optimizations:
     sess_options = onnxruntime.SessionOptions()
-    sess_options.intra_op_num_threads = 2
-    sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_PARALLEL
+    # sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_PARALLEL
     sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+    sess_options.intra_op_num_threads = 1
     ort_session = onnxruntime.InferenceSession(quantized_model_path, sess_options)
 else:
     ort_session = onnxruntime.InferenceSession(quantized_model_path)

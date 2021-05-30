@@ -1,7 +1,6 @@
 
 import numpy as np
 from time import perf_counter
-import onnx 
 import onnxruntime
 
 def timer(f,*args):   
@@ -18,9 +17,9 @@ print("-------------------- Onnx runtime Dynamic Quantized --------------------"
 
 sess_options = onnxruntime.SessionOptions()
 
-sess_options.intra_op_num_threads = 2
-sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_PARALLEL
+# sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_PARALLEL
 sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+sess_options.intra_op_num_threads = 1
 
 # model_path = "../yolo-weights/dynamic_quantized_model.onnx"
 model_path = "../yolo-weights/model.onnx"
@@ -43,6 +42,3 @@ def batch_test(ort_session, x):
     return ort_outs
 
 print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))
-# print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))
-# print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))
-# print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))

@@ -26,16 +26,19 @@ x = torch.randint(0, 255, (batch_size, 3, 512, 512), requires_grad=False).float(
 
 print('-------------------- CPU Performance --------------------')
 
-print("-------------------- Baseline performance --------------------")
+print("-------------------- Baseline Pytorch performance --------------------")
 model = load_model(use_cuda=False)
 model.eval()
 print("time-taken: ", np.mean([timer(model,x) for _ in range(10)]))
 ans = model(x)
 if ans: print("loaded properly")
 
-print("-------------------- Dynamic Quantized performance --------------------")
+print("-------------------- Pytorch Dynamic Quantized performance --------------------")
 backend = "fbgemm"
-dynamic_quantized_model = torch.quantization.quantize_dynamic(model, {nn.Conv2d}, dtype=torch.qint8) # , nn.BatchNorm2d, nn.ReLU, nn.LeakyReLU, nn.MaxPool2d
+dynamic_quantized_model = torch.quantization.quantize_dynamic(model, {nn.Conv2d, nn.BatchNorm2d, nn.ReLU}, dtype=torch.qint8) # , , nn.LeakyReLU, nn.MaxPool2d
+
+# [nn.Conv2d, nn.ReLU], [nn.Conv2d, nn.BatchNorm], [nn.Conv2d, nn.BatchNorm2d, nn.ReLU]
+
 print("time-taken: ", np.mean([timer(dynamic_quantized_model, x) for _ in range(10)]))
 torch.save(dynamic_quantized_model,'../yolo-weights/dynamic_quantized_model.pt')
 
@@ -43,10 +46,39 @@ loaded_dynamic_quantized_model = torch.load('../yolo-weights/dynamic_quantized_m
 ans = loaded_dynamic_quantized_model(x)
 if ans: print("loaded properly")
 
+print("-------------------- Pytorch Static Quantized performance --------------------")
+# backend = "fbgemm"
+# model.qconfig = torch.quantization.get_default_qconfig(backend)
+# static_quantized_model_fused = torch.quantization.fuse_modules(model, [[nn.Conv2d, nn.ReLU], [nn.Conv2d, nn.BatchNorm2d], [nn.Conv2d, nn.BatchNorm2d, nn.ReLU]]) # nn.Conv2d, nn.BatchNorm2d, nn.ReLU, nn.LeakyReLU, nn.MaxPool2d
+# static_quantized_model_prepared = torch.quantization.prepare(static_quantized_model_fused)
+# static_quantized_model_prepared(x)
+# static_quantized_model = torch.quantization.convert(static_quantized_model_prepared)
+
+backend = "fbgemm"
+model.qconfig = torch.quantization.get_default_qconfig(backend)
+torch.backends.quantized.engine = backend
+static_quantized_model = torch.quantization.prepare(model, inplace=False)
+static_quantized_model = torch.quantization.convert(static_quantized_model, inplace=False)
+
+print("time-taken: ", np.mean([timer(static_quantized_model, x) for _ in range(10)]))
+torch.save(static_quantized_model,'../yolo-weights/static_quantized_model.pt')
+
+static_quantized_model = torch.load('../yolo-weights/static_quantized_model.pt')
+ans = static_quantized_model(x)
+if ans: print("loaded properly")
 
 print("-------------------- Onnx runtime Baseline --------------------")
 import onnx
 import onnxruntime
+
+def to_numpy(tensor):
+    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+
+def batch_test(ort_session, x):
+    # compute ONNX Runtime output prediction
+    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(x)}
+    ort_outs = ort_session.run(None, ort_inputs)
+    return ort_outs
 
 torch_out = model(x)
 
@@ -67,9 +99,6 @@ onnx.checker.check_model(onnxmodel)
 
 ort_session = onnxruntime.InferenceSession("../yolo-weights/model.onnx")
 
-def to_numpy(tensor):
-    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
-
 # compute ONNX Runtime output prediction
 ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(x)}
 ort_outs = ort_session.run(None, ort_inputs)
@@ -79,23 +108,20 @@ np.testing.assert_allclose(to_numpy(torch_out[0]), ort_outs[0], rtol=1e-01, atol
 
 print("Exported model has been tested with ONNXRuntime, and the result looks good!")
 
-def batch_test(ort_session, x):
-    # compute ONNX Runtime output prediction
-    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(x)}
-    ort_outs = ort_session.run(None, ort_inputs)
-    return ort_outs
+print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))
+
+print("-------------------- Onnx runtime with better session options --------------------")
+sess_options = onnxruntime.SessionOptions()
+
+# sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_PARALLEL
+sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+sess_options.intra_op_num_threads = 1
+
+ort_session = onnxruntime.InferenceSession("../yolo-weights/model.onnx", sess_options)
 
 print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))
 
-print("-------------------- Onnx runtime Dynamic Quantized --------------------")
-import onnx 
-import onnxruntime
-
-sess_options = onnxruntime.SessionOptions()
-
-sess_options.intra_op_num_threads = 2
-sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
-sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+print("-------------------- Onnx runtime from Pytorch Dynamic Quantized --------------------")
 
 torch_out = loaded_dynamic_quantized_model(x)
 
@@ -116,9 +142,6 @@ onnx.checker.check_model(dynamic_quantized_onnxmodel)
 
 ort_session = onnxruntime.InferenceSession("../yolo-weights/dynamic_quantized_model.onnx")
 
-def to_numpy(tensor):
-    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
-
 # compute ONNX Runtime output prediction
 ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(x)}
 ort_outs = ort_session.run(None, ort_inputs)
@@ -128,14 +151,54 @@ np.testing.assert_allclose(to_numpy(torch_out[0]), ort_outs[0], rtol=1e-01, atol
 
 print("Exported model has been tested with ONNXRuntime, and the result looks good!")
 
-def batch_test(ort_session, x):
-    # compute ONNX Runtime output prediction
-    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(x)}
-    ort_outs = ort_session.run(None, ort_inputs)
-    return ort_outs
+print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))
+
+print("-------------------- Onnx runtime from Pytorch Dynamic Quantized with better session options --------------------")
+sess_options = onnxruntime.SessionOptions()
+
+# sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_PARALLEL
+sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+sess_options.intra_op_num_threads = 1
+
+ort_session = onnxruntime.InferenceSession("../yolo-weights/dynamic_quantized_model.onnx", sess_options)
 
 print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))
 
+print("-------------------- Onnx runtime from Onnx Dynamic Quantized --------------------")
+
+import onnx
+from onnxruntime.quantization import QuantizationMode, quantize
+
+onnx_model_path = "../yolo-weights/model.onnx"
+quantized_model_path = "../yolo-weights/model-quantized-by-onnx.onnx"
+
+onnx_model = onnx.load(onnx_model_path)
+
+quantized_model_onnx = quantize(
+    model=onnx_model,
+    quantization_mode=QuantizationMode.IntegerOps,
+    force_fusions=True,
+    symmetric_weight=True,
+)
+
+onnx.save_model(quantized_model_onnx, quantized_model_path)
+
+ort_session = onnxruntime.InferenceSession(quantized_model_path)
+
+print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))
+
+
+print("-------------------- Onnx runtime from Onnx Dynamic Quantized with better session options --------------------")
+
+sess_options = onnxruntime.SessionOptions()
+
+# sess_options.execution_mode = onnxruntime.ExecutionMode.ORT_PARALLEL
+sess_options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+sess_options.intra_op_num_threads = 1
+
+ort_session = onnxruntime.InferenceSession(quantized_model_path, sess_options)
+
+print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(10)]))
 
 # print("-------------------- Scripted performance --------------------")
 # scripted_model = torch.jit.script(model)
@@ -149,7 +212,7 @@ print("time-taken: ", np.mean([timer(batch_test, ort_session, x) for _ in range(
 
 # print("-------------------- Dynamic Quantized & Scripted performance --------------------")
 # dynamic_quantized_scripted_model = torch.jit.script(dynamic_quantized_model, x)
-# torch.jit.save(dynamic_quantized_scripted_model,'../yolo-weights/dynamic_quantized_model.pt')
+# torch.jit.save(dynamic_quantized_scripted_model,'../yolo-weights/dynamic_quantized_scripted_model.pt')
 # print("time-taken: ", np.mean([timer(dynamic_quantized_scripted_model, x) for _ in range(10)]))
 
 # loaded_dynamic_quantized_scripted_model = torch.jit.load('../yolo-weights/dynamic_quantized_scripted_model.pt')

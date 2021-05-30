@@ -24,6 +24,13 @@ How to check the load on GPU: `watch -n 1 nvidia-smi`
 
 `Ctrl + C` to quit from `watch`.
 
+## Load testing the fastAPI endpoint
+Follow the steps in `app-env-setup.md` for installing wrk, a load testing tool.
+Convert the python request dictionary into a json file with `app-make-json-for-lua-request.py` and load the request by editing `app-load-test-script.lua` as necessary.
+Configure, number of threads `-t`, number of connections `-c`, duration `-d` and timeout `--timeout` as per the following command:
+
+```/home/deepak_sadulla/tools/wrk/wrk "http://127.0.0.1:8000/predict" -s /home/deepak_sadulla/projects/pytorch-YOLOv4/app-load-test-script.lua --latency -t 5 -c 50 -d 10m  --timeout 100s```
+
 ## Stop the servers
 In the following order:
 ```bash
